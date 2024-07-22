@@ -1,16 +1,16 @@
 {
   "files": {
-    "main.css": "./static/css/main.20616254.css",
-    "main.js": "./static/js/main.9696df7b.js",
+    "main.css": "./static/css/main.95e52c1b.css",
+    "main.js": "./static/js/main.cfeafcc3.js",
     "static/js/453.2962a244.chunk.js": "./static/js/453.2962a244.chunk.js",
     "static/media/tt-chocolates-demibold.otf": "./static/media/tt-chocolates-demibold.d54fbdce2126d35ce6cc.otf",
     "index.html": "./index.html",
-    "main.20616254.css.map": "./static/css/main.20616254.css.map",
-    "main.9696df7b.js.map": "./static/js/main.9696df7b.js.map",
+    "main.95e52c1b.css.map": "./static/css/main.95e52c1b.css.map",
+    "main.cfeafcc3.js.map": "./static/js/main.cfeafcc3.js.map",
     "453.2962a244.chunk.js.map": "./static/js/453.2962a244.chunk.js.map"
   },
   "entrypoints": [
-    "static/css/main.20616254.css",
-    "static/js/main.9696df7b.js"
+    "static/css/main.95e52c1b.css",
+    "static/js/main.cfeafcc3.js"
   ]
 }

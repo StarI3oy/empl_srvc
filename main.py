@@ -1,3 +1,4 @@
+import aioredis
 import requests
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,11 +10,13 @@ from fastapi.staticfiles import StaticFiles
 import redis
 import json
 
+
 load_dotenv()
 ENV_URL = os.getenv("ENV_URL")
 REDIS_URL = os.getenv("REDIS_URL", "redis")
+REDIS_PORT = os.getenv("REDIS_PORT", "redis")
 
-# r = redis.Redis(host=REDIS_URL, port=6379, db=0)
+r = redis.Redis(host=REDIS_URL, port=REDIS_PORT, db=0)
 
 app = FastAPI()
 origins = ["*"]  # TODO: подтягивать ORIGINS из ENV_URL
@@ -31,8 +34,28 @@ async def ping():
     return {"ping": "pong"}
 
 
+@app.get("/set")
+async def setK():
+    r.set(f"test", "foo", ex=604800)
+    return {"ping": "pong"}
+
+
+@app.get("/get")
+async def getK():
+    user = r.get(f"test")
+    return {"ping": user}
+
+
 app.mount("/bdaywidget/", StaticFiles(directory="bdaywidget", html=True))
 app.mount("/hdaywidget/", StaticFiles(directory="hdaywidget", html=True))
+
+
+@app.on_event("startup")
+async def startup():
+    redis = aioredis.from_url(
+        "redis://localhost", encoding="utf8", decode_responses=True
+    )
+    FastAPICache.init(RedisBackend(redis), prefix="api:cache")
 
 
 @app.get("/employee/birthdate")
@@ -49,23 +72,22 @@ async def get_employees_with_bdate():
     month_today = date_today.month
     for i in range(len(data["items"])):
         id = data["items"][i]["id"]
-        # user = r.get(f"{id}_user")
-        if False:
-            pass
-        #     data_emp = json.loads(user)
-        #     if data_emp["birth_date"]:
-        #         try:
-        #             employee_date = datetime.strptime(
-        #                 data_emp["birth_date"], "%Y-%m-%d"
-        #             ).date()
-        #         except:
-        #             employee_date = datetime.strptime(
-        #                 data_emp["birth_date"], "%m-%d"
-        #             ).date()
-        #         if (
-        #             8 > abs(employee_date.day - today)
-        #         ) and month_today == employee_date.month:
-        #             arr.append(data_emp)
+        user = r.get(f"{id}_user")
+        if user:
+            data_emp = json.loads(user)
+            if data_emp["birth_date"]:
+                try:
+                    employee_date = datetime.strptime(
+                        data_emp["birth_date"], "%Y-%m-%d"
+                    ).date()
+                except:
+                    employee_date = datetime.strptime(
+                        data_emp["birth_date"], "%m-%d"
+                    ).date()
+                if (
+                    8 > abs(employee_date.day - today)
+                ) and month_today == employee_date.month:
+                    arr.append(data_emp)
         else:
             url_emp_byid = f"{ENV_URL}/profile/public/v_alpha/users/{id}/"
             response = requests.request(
@@ -85,7 +107,7 @@ async def get_employees_with_bdate():
                     8 > abs(employee_date.day - today)
                 ) and month_today == employee_date.month:
                     arr.append(data_emp)
-            # r.set(f"{id}_user", json.dumps(data_emp), ex=604800)
+            r.set(f"{id}_user", json.dumps(data_emp), ex=604800)
     return {"result": arr, "url": ENV_URL}
 
 
