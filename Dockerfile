@@ -1,15 +1,14 @@
-FROM python:3.11.5
+FROM python:3.11.5-alpine
 
 
-ENV ENV_URL=${ENV_URL}
-ENV REACT_APP_API_URL=${API_URL}
-ENV REACT_APP_URL=${APP_URL}
+# ENV ENV_URL=${ENV_URL}
+# ENV REACT_APP_API_URL=${API_URL}
+# ENV REACT_APP_URL=${APP_URL}
 # 
 
 COPY . .
 # 
 RUN pip install --no-cache-dir --upgrade -r requirements.txt
-RUN sudo apt install redis-server
 
 
 
