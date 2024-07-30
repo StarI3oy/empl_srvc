@@ -15,9 +15,6 @@ load_dotenv()
 ENV_URL = os.getenv("ENV_URL")
 REDIS_URL = os.getenv("REDIS_URL", "redis")
 REDIS_PORT = os.getenv("REDIS_PORT", "6379")
-# ENV_URL= "https://vk.lab-sp.com/"
-# REDIS_URL = "127.0.0.1"
-# REDIS_PORT = "53192"
 print(REDIS_URL)
 print(REDIS_PORT)
 
@@ -118,60 +115,3 @@ async def get_employees_with_bdate():
 async def get_url():
     return {"result": ENV_URL}
 
-
-# @app.get("/employee/birthdate_test")
-# async def get_employees_with_bdate_test():
-#     url = f"{ENV_URL}/api/groups/public/v_alpha/employees"
-#     payload = {}
-#     headers = {"Accept": "application/json"}
-#     response = requests.request("GET", url, headers=headers, data=payload, verify=False)
-#     data = loads(response.text)
-#     arr = []
-#     for i in range(len(data["items"])):
-#         id = data["items"][i]["id"]
-#         url_emp_byid = f"{ENV_URL}/profile/public/v_alpha/users/{id}/"
-#         response = requests.request(
-#             "GET", url_emp_byid, headers=headers, data=payload, verify=False
-#         )
-#         today = datetime(2024, 11, 24, 15, 8, 24, 78915).day
-#         month_today = datetime(2024, 11, 24, 15, 8, 24, 78915).month
-#         data_emp = loads(response.text)
-#         if data_emp["birth_date"]:
-#             try:
-#                 employee_date = datetime.strptime(
-#                     data_emp["birth_date"], "%Y-%m-%d"
-#                 ).date()
-#             except:
-#                 employee_date = datetime.strptime(
-#                     data_emp["birth_date"], "%m-%d"
-#                 ).date()
-#             if (
-#                 8 > abs(employee_date.day - today)
-#             ) and month_today == employee_date.month:
-#                 arr.append(data_emp)
-#     return {"result": arr, "url": ENV_URL}
-
-
-# @app.get("/employee/hiredate")
-# async def get_employees_with_hiredate():
-#     url = f"{ENV_URL}/api/groups/public/v_alpha/employees"
-#     payload = {}
-#     headers = {"Accept": "application/json"}
-#     response = requests.request("GET", url, headers=headers, data=payload, verify=False)
-#     data = loads(response.text)
-#     arr = []
-#     for i in range(len(data["items"])):
-#         id = data["items"][i]["id"]
-#         url_emp_byid = f"{ENV_URL}/profile/public/v_alpha/users/{id}/"
-#         response = requests.request(
-#             "GET", url_emp_byid, headers=headers, data=payload, verify=False
-#         )
-#         day = datetime.now().day
-#         data_emp = loads(response.text)
-#         if data_emp["start_of_work"]:
-#             if 8 > abs(
-#                 datetime.strptime(data_emp["start_of_work"], "%Y-%m-%d").date().day
-#                 - day
-#             ):
-#                 arr.append(data_emp)
-#     return {"result": arr, "url": ENV_URL}

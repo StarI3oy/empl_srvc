@@ -1,13 +1,11 @@
 FROM python:3.11.5-alpine
 
+WORKDIR /app
+COPY /hdaywidget /app/hdaywidget
+COPY /bdaywidget /app/bdaywidget
+COPY main.py /app
+COPY requirements.txt /app
 
-# ENV ENV_URL=${ENV_URL}
-# ENV REACT_APP_API_URL=${API_URL}
-# ENV REACT_APP_URL=${APP_URL}
-# 
-
-COPY . .
-# 
 RUN pip install --no-cache-dir --upgrade -r requirements.txt
 
 
