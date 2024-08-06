@@ -1,4 +1,3 @@
-import aioredis
 import requests
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,14 +11,15 @@ import json
 import redis.asyncio as redis
 
 load_dotenv()
-ENV_URL = os.getenv("ENV_URL")
-REDIS_URL = os.getenv("REDIS_URL", "redis")
-REDIS_PORT = os.getenv("REDIS_PORT", "6379")
+ENV_URL = os.getenv("ENV_URL", "https://vk.lab-sp.com")
+REDIS_URL = os.getenv("REDIS_URL", "127.0.0.1")
+REDIS_PORT = os.getenv("REDIS_PORT", "59920")
 print(REDIS_URL)
+print(ENV_URL)
 print(REDIS_PORT)
 
 app = FastAPI()
-origins = ["*"]  # TODO: подтягивать ORIGINS из ENV_URL
+origins = ["*"]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -50,6 +50,32 @@ async def getK():
     return {"ping": user}
 
 
+@app.get("/clear")
+async def clear():
+    """Чистим редис"""
+    result = "success"
+    try:
+        r = redis.Redis(host=REDIS_URL, port=REDIS_PORT, db=0)
+        url = f"{ENV_URL}/api/groups/public/v_alpha/employees"
+        payload = {}
+        headers = {"Accept": "application/json"}
+        response = requests.request(
+            "GET", url, headers=headers, data=payload, verify=False
+        )
+        data = loads(response.text)
+        for i in range(len(data["items"])):
+            id = data["items"][i]["id"]
+            url_emp_byid = f"{ENV_URL}/profile/public/v_alpha/users/{id}/"
+            response = requests.request(
+                "GET", url_emp_byid, headers=headers, data=payload, verify=False
+            )
+            data_emp = loads(response.text)
+            await r.set(f"{id}_user", json.dumps(data_emp), ex=0)
+    except:
+        result = "error"
+    return {"result": result}
+
+
 app.mount("/bdaywidget/", StaticFiles(directory="bdaywidget", html=True))
 app.mount("/hdaywidget/", StaticFiles(directory="hdaywidget", html=True))
 
@@ -76,14 +102,13 @@ async def get_employees_with_bdate():
                 try:
                     employee_date = datetime.strptime(
                         data_emp["birth_date"], "%Y-%m-%d"
-                    ).date()
+                    )
                 except:
-                    employee_date = datetime.strptime(
-                        data_emp["birth_date"], "%m-%d"
-                    ).date()
+                    employee_date = datetime.strptime(data_emp["birth_date"], "%m-%d")
+                time_delta = employee_date.day - date_today.day
+
                 if (
-                    8 > (employee_date - date_today)
-                    or 0 >= (employee_date - date_today)
+                    8 > time_delta and 0 <= time_delta
                 ) and month_today == employee_date.month:
                     arr.append(data_emp)
         else:
@@ -96,14 +121,12 @@ async def get_employees_with_bdate():
                 try:
                     employee_date = datetime.strptime(
                         data_emp["birth_date"], "%Y-%m-%d"
-                    ).date()
+                    )
                 except:
-                    employee_date = datetime.strptime(
-                        data_emp["birth_date"], "%m-%d"
-                    ).date()
+                    employee_date = datetime.strptime(data_emp["birth_date"], "%m-%d")
+                time_delta = employee_date.day - date_today.day
                 if (
-                    8 > (employee_date - date_today)
-                    or 0 >= (employee_date - date_today)
+                    8 > time_delta and 0 <= time_delta
                 ) and month_today == employee_date.month:
                     arr.append(data_emp)
             await r.set(f"{id}_user", json.dumps(data_emp), ex=86400)
@@ -114,4 +137,3 @@ async def get_employees_with_bdate():
 @app.get("/employee/get_url")
 async def get_url():
     return {"result": ENV_URL}
-
