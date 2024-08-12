@@ -4,12 +4,14 @@ from fastapi.middleware.cors import CORSMiddleware
 import os
 from dotenv import load_dotenv
 from json import loads, dump
-from datetime import datetime
+from datetime import datetime, timedelta
 from fastapi.staticfiles import StaticFiles
 import redis
 import json
 import redis.asyncio as redis
-
+from operator import itemgetter, attrgetter
+import warnings
+warnings.filterwarnings("ignore")
 load_dotenv()
 ENV_URL = os.getenv("ENV_URL", "https://vk.lab-sp.com")
 REDIS_URL = os.getenv("REDIS_URL", "127.0.0.1")
@@ -70,7 +72,7 @@ async def clear():
                 "GET", url_emp_byid, headers=headers, data=payload, verify=False
             )
             data_emp = loads(response.text)
-            await r.set(f"{id}_user", json.dumps(data_emp), ex=0)
+            await r.set(f"{id}_user", json.dumps(data_emp), ex=1)
     except:
         result = "error"
     return {"result": result}
@@ -78,6 +80,14 @@ async def clear():
 
 app.mount("/bdaywidget/", StaticFiles(directory="bdaywidget", html=True))
 app.mount("/hdaywidget/", StaticFiles(directory="hdaywidget", html=True))
+
+
+def parse_date(date_str):
+    try:
+        employee_date = datetime.strptime(date_str, "%Y-%m-%d")
+    except:
+        employee_date = datetime.strptime(date_str, "%m-%d")
+    return employee_date
 
 
 @app.get("/employee/birthdate")
@@ -91,7 +101,6 @@ async def get_employees_with_bdate():
     data = loads(response.text)
     arr = []
     date_today = datetime.now()
-    today = date_today.day
     month_today = date_today.month
     for i in range(len(data["items"])):
         id = data["items"][i]["id"]
@@ -99,14 +108,8 @@ async def get_employees_with_bdate():
         if user:
             data_emp = json.loads(user)
             if data_emp["birth_date"]:
-                try:
-                    employee_date = datetime.strptime(
-                        data_emp["birth_date"], "%Y-%m-%d"
-                    )
-                except:
-                    employee_date = datetime.strptime(data_emp["birth_date"], "%m-%d")
+                employee_date = parse_date(data_emp["birth_date"])
                 time_delta = employee_date.day - date_today.day
-
                 if (
                     8 > time_delta and 0 <= time_delta
                 ) and month_today == employee_date.month:
@@ -118,12 +121,7 @@ async def get_employees_with_bdate():
             )
             data_emp = loads(response.text)
             if data_emp["birth_date"]:
-                try:
-                    employee_date = datetime.strptime(
-                        data_emp["birth_date"], "%Y-%m-%d"
-                    )
-                except:
-                    employee_date = datetime.strptime(data_emp["birth_date"], "%m-%d")
+                employee_date = parse_date(data_emp["birth_date"])
                 time_delta = employee_date.day - date_today.day
                 if (
                     8 > time_delta and 0 <= time_delta
@@ -131,7 +129,12 @@ async def get_employees_with_bdate():
                     arr.append(data_emp)
             await r.set(f"{id}_user", json.dumps(data_emp), ex=86400)
     await r.aclose()
-    return {"result": arr, "url": ENV_URL}
+    return {
+        "result": sorted(
+            arr, key=lambda x: parse_date(x["birth_date"]).day - date_today.day
+        ),
+        "url": ENV_URL,
+    }
 
 
 @app.get("/employee/get_url")
