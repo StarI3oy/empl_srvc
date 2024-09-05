@@ -38,7 +38,7 @@ async def ping():
 
 @app.get("/set")
 async def setK():
-    client = redis.Redis(host=REDIS_URL, port=REDIS_PORT, db=0)
+    client = redis.Redis(host=REDIS_URL, port=int(REDIS_PORT), db=0)
     await client.set(f"test", "foo", ex=86400)
     await client.aclose()
     return {"ping": "pong"}
@@ -46,10 +46,24 @@ async def setK():
 
 @app.get("/get")
 async def getK():
-    client = redis.Redis(host=REDIS_URL, port=REDIS_PORT, db=0)
+    client = redis.Redis(host=REDIS_URL, port=int(REDIS_PORT), db=0)
     user = await client.get(f"test")
     await client.aclose()
     return {"ping": user}
+
+
+@app.get("/getUser")
+async def getUser(id: str):
+    client = redis.Redis(host=REDIS_URL, port=int(REDIS_PORT), db=0)
+    payload = {}
+    headers = {"Accept": "application/json"}
+    url_emp_byid = f"{ENV_URL}/profile/public/v_alpha/users/{id}/"
+    response = requests.request(
+        "GET", url_emp_byid, headers=headers, data=payload, verify=False
+    )
+    data_emp = loads(response.text)
+    await client.aclose()
+    return data_emp
 
 
 @app.get("/clear")
@@ -57,8 +71,8 @@ async def clear():
     """Чистим редис"""
     result = "success"
     try:
-        r = redis.Redis(host=REDIS_URL, port=REDIS_PORT, db=0)
-        url = f"{ENV_URL}/api/groups/public/v_alpha/employees"
+        r = redis.Redis(host=REDIS_URL, port=int(REDIS_PORT), db=0)
+        url = f"{ENV_URL}/api/groups/public/v_alpha/employees/?page_size=10000000"
         payload = {}
         headers = {"Accept": "application/json"}
         response = requests.request(
@@ -73,8 +87,8 @@ async def clear():
             )
             data_emp = loads(response.text)
             await r.set(f"{id}_user", json.dumps(data_emp), ex=1)
-    except:
-        result = "error"
+    except Exception as e:
+        result = str(e)
     return {"result": result}
 
 
@@ -93,41 +107,53 @@ def parse_date(date_str):
 @app.get("/employee/birthdate")
 async def get_employees_with_bdate():
     # * Используем переменную окружения, и обьявленный в ней URL нашего API
-    r = redis.Redis(host=REDIS_URL, port=REDIS_PORT, db=0)
-    url = f"{ENV_URL}/api/groups/public/v_alpha/employees"
-    payload = {}
-    headers = {"Accept": "application/json"}
-    response = requests.request("GET", url, headers=headers, data=payload, verify=False)
-    data = loads(response.text)
+    r = redis.Redis(host=REDIS_URL, port=int(REDIS_PORT), db=0)
+    page_num = 1
+    end = -1
     arr = []
     date_today = datetime.now()
     month_today = date_today.month
-    for i in range(len(data["items"])):
-        id = data["items"][i]["id"]
-        user = await r.get(f"{id}_user")
-        if user:
-            data_emp = json.loads(user)
+    payload = {}
+    headers = {"Accept": "application/json"}
+    while page_num != end + 1:
+        url = f"{ENV_URL}/api/groups/public/v_alpha/employees/?page_number={page_num}"
+        page_num += 1
+        response = requests.request(
+            "GET", url, headers=headers, data=payload, verify=False
+        )
+        data = loads(response.text)
+        if end == -1:
+            end = int(data["meta"]["pages_count"])
+        for i in range(len(data["items"])):
+            id = data["items"][i]["id"]
+            """ Проверяем что пользователь есть в редисе. Если нет - грузим в редис"""
+            user = await r.get(f"{id}_user")
+            if user:
+                data_emp = json.loads(user)
+            else:
+                url_emp_byid = f"{ENV_URL}/profile/public/v_alpha/users/{id}/"
+                response = requests.request(
+                    "GET", url_emp_byid, headers=headers, data=payload, verify=False
+                )
+                data_emp = loads(response.text)
+                await r.set(f"{id}_user", json.dumps(data_emp), ex=86400)
+
             if data_emp["birth_date"]:
-                employee_date = parse_date(data_emp["birth_date"])
-                time_delta = employee_date.day - date_today.day
+                try:
+                    employee_date = datetime.strptime(
+                        data_emp["birth_date"], "%Y-%m-%d"
+                    )
+                except:
+                    employee_date = datetime.strptime(data_emp["birth_date"], "%m-%d")
+                employee_birth_date_this_year = datetime(
+                    date_today.year, employee_date.month, employee_date.day
+                )
+                time_delta = employee_birth_date_this_year - date_today 
                 if (
-                    8 > time_delta and 0 <= time_delta
+                    8 > time_delta.days and 0 <= time_delta.days
                 ) and month_today == employee_date.month:
                     arr.append(data_emp)
-        else:
-            url_emp_byid = f"{ENV_URL}/profile/public/v_alpha/users/{id}/"
-            response = requests.request(
-                "GET", url_emp_byid, headers=headers, data=payload, verify=False
-            )
-            data_emp = loads(response.text)
-            if data_emp["birth_date"]:
-                employee_date = parse_date(data_emp["birth_date"])
-                time_delta = employee_date.day - date_today.day
-                if (
-                    8 > time_delta and 0 <= time_delta
-                ) and month_today == employee_date.month:
-                    arr.append(data_emp)
-            await r.set(f"{id}_user", json.dumps(data_emp), ex=86400)
+
     await r.aclose()
     return {
         "result": sorted(
