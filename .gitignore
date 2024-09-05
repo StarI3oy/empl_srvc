@@ -28,3 +28,5 @@ archive.zip
 *.env
 # macOS
 .DS_Store
+/venv/
+/venv1/
